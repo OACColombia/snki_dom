@@ -1,6 +1,6 @@
 ---
 title: '**Supporting Information**'
-author: "Brooke Poplin, Orlando Acevedo-Charry, Caroline L. Poli, Brian M. Jeffery, Robert J. Fletcher Jr., Ellen Robertson, and Miguel A. Acevedo"
+author: "Brooke Poplin, Orlando Acevedo-Charry, Caroline L. Poli, Brian M. Jeffery, Savannah Troy, Robert J. Fletcher Jr., Ellen Robertson, and Miguel A. Acevedo"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
   bookdown::html_document2:
@@ -26,10 +26,33 @@ editor_options:
 
 Add description
 
+
+## Dynamic occupancy model
+One of the model for the biotic hypothesis include the colonization probability conditional to the presence of snails ($\gamma | \psi_{Pomacea}$). Let's see the dynamic occupancy model modified from [Royle & Kery (2007)](https://esajournals.onlinelibrary.wiley.com/doi/10.1890/06-0669.1) (Acevedo-Charry et al. In Prep). 
+
+The state submodel, for $t = 1$
+$$
+z_{m,1} \sim \text{Bernoulli}(\psi_1)
+$$
+
+and the subsequent times $t>1$
+$$
+z_{m,t}|z_{m,t-1} \sim \text{Bernoulli}\left(z_{m,t-1} [1 - \varepsilon_{m,t}] + [1 - z_{m,t-1}] \gamma_{m,t} \right)
+$$
+
+The observation submodel
+$$
+y_{j,m,t} | z_{m,t} \sim \text{Bernoulli}(z_{m,t} \times p_{m,j,t})
+$$
+
+We cannot assess detections and no detections for the snails _Pomacea_ spp., thus we are unable to apply a Dynamic co-occurrence model ([Fidino et al. 2019](https://besjournals.onlinelibrary.wiley.com/doi/epdf/10.1111/2041-210X.13117)) or using the estimated occupancy of interacting species ([Lesmeister et al. 2015](https://wildlife.onlinelibrary.wiley.com/doi/10.1002/wmon.1015)). Instead, we can explicitly incorporate the linear relationship of colonization given presence of snails _Pomacea_ spp. in the sampling unit at the same time period: $\text{logit}(\gamma_{m,t}) = \beta_0 + \sum \beta_{s} \times y_{s,m,t}$, where $s$ represents each species in the genus _Pomacea_ in the US ($s = 1,2,...,S = 5$; [Machado-Stredel et al. 2024](https://doi.org/10.1093/ornithology/ukae022)). In other words, the colonization of snail kites to an unocupied site will respond to the detection of any species of snail in that site at the sampling period $t$.
+
 # Packages, models, and functions
 
 ## Packages required
 ```{r package-loading, message=FALSE, warning=FALSE}
+#To extract presences of any Pomacea during the sampling period we can use dismo
+library(dismo)
 #To conduct eBird data filtering and manipulation (see Strimas et al. 2018 and 2023)
   library(auk); 
 #To data management and visualization - sevent packages in one
@@ -46,7 +69,129 @@ Add description
   library(ggpubr);
 ```
 
-# eBird data organization
+# Pomacea species - only detections from GBIF
+
+```{r eval=FALSE}
+Ppaludosa = gbif("Pomacea", "paludosa") |>
+  filter(year >= 1995, year < 2026,
+         month %in% c(4,5), 
+         lat > 24, lat < 34, 
+         lon > -88, lon < -75)
+
+Pmaculata = gbif("Pomacea", "maculata") |>
+  filter(year >= 1995, year < 2026,
+         month %in% c(4,5), 
+         lat > 24, lat < 34, 
+         lon > -88, lon < -75)
+
+Pcanaliculata = gbif("Pomacea", "canaliculata") |>
+  filter(year >= 1995, year < 2026,
+         month %in% c(4,5), 
+         lat > 24, lat < 34, 
+         lon > -88, lon < -75)  
+
+Pdiffusa = gbif("Pomacea", "diffusa") |>
+  filter(year >= 1995, year < 2026,
+         month %in% c(4,5), 
+         lat > 24, lat < 34, 
+         lon > -88, lon < -75)  
+
+Phaustrum = gbif("Pomacea", "haustrum") |>
+  filter(year >= 1995, year < 2026,
+         month %in% c(4,5), 
+         lat > 24, lat < 34, 
+         lon > -88, lon < -75)  
+```
+
+But this is painful because the different datasets of Darwin Core in GBIF generate different columns names. We can try to wrap-up all with a function:
+
+```{r eval=FALSE}
+get_gbif <- function(genus, species) {
+  # the function in dismo
+  gbif(genus, species) |>
+    # filter in time and space
+    filter(
+      year >= 1995, year < 2026,
+      month %in% c(4, 5),
+      lat > 24, lat < 34,
+      lon > -88, lon < -75
+    ) |>
+    # check species name
+    mutate(species_name = paste(genus, species)) |>
+    # unify columns in a single 'type' (character vs numeric)
+    mutate(across(everything(), as.character)) 
+}
+
+species_list <- list(
+  Ppaludosa     = get_gbif("Pomacea", "paludosa"), #342
+  Pmaculata     = get_gbif("Pomacea", "maculata"), #575
+  Pcanaliculata = get_gbif("Pomacea", "canaliculata"), #30
+  Pdiffusa      = get_gbif("Pomacea", "diffusa"), #6
+  Phaustrum     = get_gbif("Pomacea", "haustrum") #no records within the filter
+)
+
+snails_gbif <- bind_rows(species_list, .id = "query_name")
+```
+![Downloading data from GBIF with the above chunk](data/Downloading gbif.png)
+
+And we can simplify this dataset to the columns that we need
+```{r eval=FALSE}
+snails_gbif <- snails_gbif[,c("query_name",
+               "lat","lon",
+               "year","month", "startDayOfYear", "endDayOfYear","eventDate",
+               "key","datasetKey","datasetName","basisOfRecord","references")]
+head(snails_gbif, 3)
+
+# return type of the columns saved
+snails_gbif$query_name <- as.factor(snails_gbif$query_name)
+snails_gbif$lat <- as.numeric(snails_gbif$lat)
+snails_gbif$lon <- as.numeric(snails_gbif$lon)
+snails_gbif$year <- as.numeric(snails_gbif$year)
+snails_gbif$month <- as.numeric(snails_gbif$month)
+snails_gbif$startDayOfYear <- as.numeric(snails_gbif$startDayOfYear)
+snails_gbif$endDayOfYear <- as.numeric(snails_gbif$endDayOfYear)
+saveRDS(snails_gbif, "data/snails_gbif.RDS")
+```
+![Selecting some columns to have a more manegable dataset](data/Selecting_gbif.png)
+
+We call the data saved in the previous chunk...
+
+```{r}
+snails_gbif <- readRDS("data/snails_gbif.RDS")
+```
+
+..and we can see the map of records of the genus _Pomacea_ in the southestern US
+
+```{r eval=FALSE}
+world1 <- sf::st_as_sf(map(database = 'world', plot = FALSE, fill = TRUE))
+
+MapSnails <- ggplot() +
+  geom_sf(data = world1) +
+  geom_point(data = snails_gbif |> 
+               mutate(lustro = ifelse(year >= 1995 & year < 2000, "1995-2000",
+                               ifelse(year >= 2000 & year < 2005, "2000-2005",
+                               ifelse(year >= 2005 & year < 2010, "2005-2010",
+                               ifelse(year >= 2010 & year < 2015, "2010-2015",
+                               ifelse(year >= 2015 & year < 2020, "2015-2020",
+                               ifelse(year >= 2020 & year <= 2025, "2020-2025",
+                                      NA))))))), 
+             aes(x = lon,
+                 y = lat, 
+                 fill = query_name),
+             size = 1, shape = 21, alpha = 0.5) +
+  facet_wrap(~lustro, ncol = 3)+
+  coord_sf(xlim = c(-89, -74), 
+           ylim =  c(23, 35)) +
+  labs(x = "Longitude", y = "Latitude", fill = "Species")+
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+ggsave(MapSnails, filename = "data/MapSnails.jpg", 
+       width = 225, height = 150, units = "mm")
+```
+![Map of presence of four out of five species of apple snails in the US, segregated by five-year periods](data/MapSnails.jpg)
+
+# eBird data organization for Dynamic Occupancy Model
 
 This section is based on [Acevedo-Charry *et al.* (2025)](https://doi.org/10.1111/1365-2664.70108). We should download the `ebd` file from
 [eBird](https://ebird.org/data/download). See the supplement to
