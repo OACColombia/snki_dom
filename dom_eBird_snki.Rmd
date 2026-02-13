@@ -158,6 +158,11 @@ We call the data saved in the previous chunk...
 
 ```{r}
 snails_gbif <- readRDS("data/snails_gbif.RDS")
+
+ggplot(snails_gbif, aes(x = year))+
+  facet_wrap(~query_name)+
+  geom_bar()+
+  theme_classic()
 ```
 
 ..and we can see the map of records of the genus _Pomacea_ in the southestern US
