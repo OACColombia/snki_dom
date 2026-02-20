@@ -285,7 +285,7 @@ first function `auk_ebd()` includes the path of the eBird data downloaded and sa
  * by duration (`auk_duration()`; $≤5$ hours, note the units are in minutes: $300$), and 
  * only complete lists (`auk_complete()`). 
  
-Then, the filters defined are converted to an AWK script with the function `auk_filter()`, generating a filtered eBird Reference Dataset (ERD) and sampling reference (SED), stored in the temporal files `f_ebd` and `f_sed`, respectively. The duration of this filter was 20 minutes. Then, the function `read_ebd()` read the filtered files. The duration for this process was 9 additional minutes. Finally, we generate a zero-filled file, a process of duration 4 additional minutes, plus some time saving the big-size file `snki_zf`.
+Then, the filters defined are converted to an AWK script with the function `auk_filter()`, generating a filtered eBird Reference Dataset (ERD) and sampling reference (SED), stored in the temporal files `f_ebd` and `f_sed`, respectively. The duration of this filter was 20 minutes. Then, the function `read_ebd()` read the filtered files. The duration for this process was 9 additional minutes. Finally, we generate a zero-filled file, a process of duration 4 additional minutes, plus some time saving the big-size file `snki_zf`. \textbf{Hey, this is a test}
 
 ```{r ebd-filter, eval=FALSE}
 start_time <- Sys.time()
