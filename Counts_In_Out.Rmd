@@ -22,7 +22,7 @@ editor_options:
 
 # Read me (begin here)
 
-This code aims to contrast the counts in and out wetlands monitored by the UF-SNKI project. For this, Brooke worked in ARCGIS to generate two shapefiles: Florida wetlands (not monitored by the UF-SNKI project) and Wetlands monitored by the UF-SNKI project. We used the eBird data, segregating by the known "Era"s (Era 1: 1992-2004; Era 2: 2005-2008; Era 3: 2009-2013; [sensu Cattau et al. 2016](https://doi.org/10.1890/15-1020.1)), but incorporating two new arbitrary ones (Era 4: 2014-2018; Era 5: 2019-2025). Given the temporal dynamic of eBird data sampling (see timeline figure below), we extracted the weekly maximum counts reported for the years 2014 to 2025 (Era 4 and Era 5), for the weeks 9 to 26 (roughly from March 01 to June 30, as the original robust design description in [Dreitz et al. 2002](http://dx.doi.org/10.1080/02664760120108854)).
+This code aims to contrast the counts of snail kites in and out wetlands monitored by the UF-SNKI project. For this, Brooke worked in ARCGIS to generate two shapefiles: Florida wetlands (not monitored by the UF-SNKI project) and Wetlands monitored by the UF-SNKI project. The first shapefile reflects water in the peninsula, so we added a buffer of 1 km around each "wetland" to include the location uncertainty of the snail kite counts in eBird, and removed the monitored wetlands to have the contrasting groups more clear in our design. We used the eBird data, segregating by the known "Era"s (Era 1: 1992-2004; Era 2: 2005-2008; Era 3: 2009-2013; [sensu Cattau et al. 2016](https://doi.org/10.1890/15-1020.1)), but incorporating two new arbitrary ones (Era 4: 2014-2018; Era 5: 2019-2025). Given the temporal dynamic of eBird data sampling (see timeline figure below), we extracted the weekly maximum counts reported for the years 2014 to 2025 (Era 4 and Era 5), for the weeks 9 to 26 (roughly from March 01 to June 30, as the original robust design description in [Dreitz et al. 2002](http://dx.doi.org/10.1080/02664760120108854)).
 
 # Packages, models, and functions
 
@@ -139,7 +139,7 @@ Then, the filters defined are converted to an AWK script with the function `auk_
 
 ```{r eval=FALSE}
 snki_wetlands <- st_read("Shapefiles/ALLSITESCLEANED2_Project.shp")
-fl_wetlands <- st_read("Shapefiles/FL_Wetlands_SNKI_Habitat.shp")
+fl_wetlands <- st_read("Shapefiles/FL_Wetlands_SNKI_noMon_1km.shp")
 
 # I feel more confortable in geographic coordinate system (WGS84, EPSG: 4326), which is also the CRS for the eBird data
 snki_wetls_geo <- st_transform(snki_wetlands, 4326)
@@ -219,6 +219,8 @@ snki_zf_in <- readRDS("data/snki_zf_SNKIpoly.RDS")
 snki_zf_in_sf <- snki_zf_in |>
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
 
+#sum(!st_is_valid(snki_wetls_geo)) 
+
 snki_wetls_geo_valid <- st_make_valid(snki_wetls_geo) # 2 polygons were invalid
 
 snki_in_wet_snki <- st_join(
@@ -233,7 +235,7 @@ snki_zf_out_sf <- snki_zf_out |>
   st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
 
 #sum(!st_is_valid(fl_wetls_geo)) 
-fl_wetls_geo_valid <- st_make_valid(fl_wetls_geo) # 196 polygons were invalid
+fl_wetls_geo_valid <- st_make_valid(fl_wetls_geo) # 0 polygons were invalid
 
 snki_out_wet_snki <- st_join(
   snki_zf_out_sf,
@@ -245,7 +247,7 @@ snki_out_wet_snki <- st_join(
 snki_zf <- bind_rows(list(`In monitored wetlands` = snki_in_wet_snki,
                           `Out monitored wetlands` = snki_out_wet_snki),
                      .id = "source")
-#Effort and more filtering (30 days per year, Julian days 123-152)
+#Effort and confirming filtering
   # Function to convert time observation to hours since midnight
 time_to_decimal <- function(x) {
     x <- hms(x, quiet = TRUE)
@@ -340,11 +342,11 @@ MapRecords <- ggplot() +
   labs(x = "Longitude", y = "Latitude", fill = "Detection")+
   theme_classic() +
   theme(legend.position = "none")
-ggsave(MapRecords, filename = "data/MapRecords_spatio.jpg", 
+ggsave(MapRecords, filename = "data/MapRecords_spatio_buff.jpg", 
        width = 250, height = 150, units = "mm")
 
 ```
-![Spatial distribution of sampling without detection (0) and eBird detections (1) segregated in three decades](data/MapRecords_spatio.jpg)
+![Spatial distribution of sampling without detection (0) and eBird detections (1) segregated in three decades](data/MapRecords_spatio_buff.jpg)
 
 They seem to overlapp spatially, but it could be the temporal dynamic that we are interested!!!
 
@@ -366,7 +368,7 @@ MaxCountWeek <- snki_eff |>
          color = "")+
     theme_classic() +
   theme(legend.position = "bottom")
-ggsave(MaxCountWeek, filename = "data/Maximum counts per week.jpg", 
+ggsave(MaxCountWeek, filename = "data/Maximum_counts_per_week.jpg", 
        width = 250, height = 150, units = "mm")
 ```
-![Temporal distribution of maximum counts of individuals observed in or outside wetlands monitored by SNKI project](data/Maximum counts per week.jpg)
+![Temporal distribution of maximum counts of individuals observed in or outside wetlands monitored by SNKI project](data/Maximum_counts_per_week.jpg)
